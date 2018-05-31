@@ -61,27 +61,31 @@ namespace Batch.Processor
                 r.DependsOn = r.DependsOn.Except(successExecutions);
 
             var failedExecutions = responseExecutions.Where(r => r.Status == "Failed").Select(r => r.Id);
-            var dependentExecution = RemoveAllFailed(remainingRequests, failedExecutions);
-            responses.AddRange(dependentExecution);
+            var failedDependencies = GetAllFailedDependency(remainingRequests, failedExecutions);
+            responses.AddRange(failedDependencies.Select(r => new Response() { Id = r.Id, Status = "DependencyFailed" }));
+
+            remainingRequests = RemoveRequests(remainingRequests, failedDependencies);
+
 
             await Execute(remainingRequests, responses);
         }
 
-        private IEnumerable<Response> RemoveAllFailed(List<Request> requests, IEnumerable<string> failedExecutions)
+        private IEnumerable<Request> GetAllFailedDependency(List<Request> requests, IEnumerable<string> failedExecutions)
         {
-            var responses = new List<Response>();
+            var failedRequests = new List<Request>();
             foreach (var id in failedExecutions)
-                responses.AddRange(RemoveDependency(requests, id));
-            return responses;
+                RemoveDependentRequest(requests, failedRequests, id);
+            return failedRequests;
         }
 
-        private IEnumerable<Response> RemoveDependency(List<Request> requests, string failedId)
+        private void RemoveDependentRequest(List<Request> requests, List<Request> failedRequests, string failedId)
         {
             var dependencies = requests.Where(r => r.DependsOn.Contains(failedId));
 
-            RemoveRequests(requests, dependencies);
+            failedRequests.AddRange(dependencies);
 
-            return dependencies.Select(r => new Response() { Id = r.Id, Status = "DependencyFailed" });
+            foreach (var d in dependencies)
+                RemoveDependentRequest(requests, failedRequests, d.Id);
         }
 
         private static List<Request> RemoveRequests(List<Request> requests, IEnumerable<Request> executedRequests)

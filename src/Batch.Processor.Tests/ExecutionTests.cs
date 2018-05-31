@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Batch.Processor.Tests
 {
-    public class ExecutionTests: IClassFixture<WebApplicationFactory<SampleAPI.Startup>>
+    public class ExecutionTests : IClassFixture<WebApplicationFactory<SampleAPI.Startup>>
     {
         private readonly WebApplicationFactory<SampleAPI.Startup> _Samplefactory;
 
@@ -28,8 +28,8 @@ namespace Batch.Processor.Tests
                     new Request("1", "GET", "/api/values"),
                     new Request("2", "GET", "/api/nonexist"),
                     new Request("3", "GET", "/api/values", new string[]{ "2" }),
-                    new Request("4", "POST", "/api/values", new string[]{ "3" }),
-                    new Request("5", "POST", "/api/values", new string[]{ "1" })
+                    new Request("4", "GET", "/api/values", new string[]{ "3" }),
+                    new Request("5", "GET", "/api/values", new string[]{ "1" })
                 }
             };
         }
@@ -43,14 +43,14 @@ namespace Batch.Processor.Tests
                 {
                     new Request("1", "GET", "/api/values"),
                     new Request("2", "GET", "/api/values", new string[]{ "1" }),
-                    new Request("3", "POST", "/api/values", new string[]{ "2" }),
-                    new Request("4", "POST", "/api/values", new string[]{ "1" })
+                    new Request("3", "GET", "/api/values", new string[]{ "2" }),
+                    new Request("4", "GET", "/api/values", new string[]{ "1" })
                 }
             };
         }
 
         [Fact]
-        public async Task VerifyResponsesCount()
+        public async Task VerifyResponsesCountSuccess()
         {
             BatchRequest batchRequest = GenerateSampleData();
 
@@ -67,6 +67,33 @@ namespace Batch.Processor.Tests
             var responses = await GetExecutor(batchRequest).Execute(batchRequest);
 
             Assert.Equal(batchRequest.Requests.Count(), responses.Responses.Count());
+        }
+
+        [Fact]
+        public async Task VerifyResponsesWithFail()
+        {
+            BatchRequest batchRequest = GenerateSampleDataWithFail();
+
+            var responses = await GetExecutor(batchRequest).Execute(batchRequest);
+
+            Assert.Equal("Success", responses.Responses.First(r => r.Id == "1").Status);
+            Assert.Equal("Failed", responses.Responses.First(r => r.Id == "2").Status);
+            Assert.Equal("DependencyFailed", responses.Responses.First(r => r.Id == "3").Status);
+            Assert.Equal("DependencyFailed", responses.Responses.First(r => r.Id == "4").Status);
+            Assert.Equal("Success", responses.Responses.First(r => r.Id == "5").Status);
+        }
+
+        [Fact]
+        public async Task VerifyResponsesWithSuccess()
+        {
+            BatchRequest batchRequest = GenerateSampleData();
+
+            var responses = await GetExecutor(batchRequest).Execute(batchRequest);
+
+            Assert.Equal("Success", responses.Responses.First(r => r.Id == "1").Status);
+            Assert.Equal("Success", responses.Responses.First(r => r.Id == "2").Status);
+            Assert.Equal("Success", responses.Responses.First(r => r.Id == "3").Status);
+            Assert.Equal("Success", responses.Responses.First(r => r.Id == "4").Status);
         }
 
         private ExecutionPlanner GetExecutor(BatchRequest batchRequest)
