@@ -3,19 +3,41 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Batch.Processor
 {
     public class ExecutionPlanner
     {
-        private readonly ParallelWorker worker;
+        private readonly RequestProcessor _processor;
 
-        public ExecutionPlanner()
+        public ExecutionPlanner(RequestProcessor processor)
         {
-            worker = new ParallelWorker();
+            _processor = processor;
         }
 
-        public void Execute(List<Request> remainingRequests, List<Response> responses)
+        public async Task<BatchResponse> Execute(BatchRequest batchRequest)
+        {
+            var requests = batchRequest.Requests;
+
+            var responses = await Execute(requests);
+
+            return new BatchResponse()
+            {
+                Responses = responses
+            };
+        }
+
+        public async Task<IEnumerable<Response>> Execute(IEnumerable<Request> requests)
+        {
+            var responses = new List<Response>();
+
+            await Execute(requests.ToList(), responses);
+
+            return responses;
+        }
+
+        private async Task Execute(List<Request> remainingRequests, List<Response> responses)
         {
             if (remainingRequests.Count == 0)
                 return;
@@ -28,7 +50,7 @@ namespace Batch.Processor
                 return;
             }
 
-            var responseExecutions = worker.Process(requestToExecute);
+            var responseExecutions = await _processor.Process(requestToExecute);
 
             responses.AddRange(responseExecutions); // Executed (Successed and Failed)
 
@@ -42,7 +64,7 @@ namespace Batch.Processor
             var dependentExecution = RemoveAllFailed(remainingRequests, failedExecutions);
             responses.AddRange(dependentExecution);
 
-            Execute(remainingRequests, responses);
+            await Execute(remainingRequests, responses);
         }
 
         private IEnumerable<Response> RemoveAllFailed(List<Request> requests, IEnumerable<string> failedExecutions)

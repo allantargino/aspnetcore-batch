@@ -6,5 +6,7 @@ namespace Batch.Processor.Models
 {
     public class BatchResponse
     {
+        public IEnumerable<Response> Responses { get; set; }
+
     }
 }
