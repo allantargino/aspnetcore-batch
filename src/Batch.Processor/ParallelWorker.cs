@@ -13,22 +13,23 @@ namespace Batch.Processor
             var responses = new List<Response>();
             foreach (var request in requests)
             {
-                string url = request.Url;
+                string url = request.Service;
                 var method = GetHttpMethod(request.Method);
 
                 using (var client = new HttpClient())
                 {
                 }
 
-                responses.Add(new Response());
+                responses.Add(new Response() {Id = request.Id, Status = "Success" });
             }
 
             return responses;
         }
 
-        public HttpMethod GetHttpMethod(string method)
+        public HttpMethod GetHttpMethod(string incomingMethod)
         {
-            switch (method.ToUpper())
+            var method = incomingMethod.ToUpper();
+            switch (method)
             {
                 case "DELETE":
                     return HttpMethod.Delete;
@@ -39,7 +40,7 @@ namespace Batch.Processor
                 case "PUT":
                     return HttpMethod.Put;
                 default:
-                    return new HttpMethodNotAllowed();
+                    return new HttpMethod(method);
             }
         }
     }
